@@ -13,28 +13,34 @@
         <div class="">
             <h1 class="text-3xl font-bold text-center m-2">WebRTC with Socket.io</h1>
         </div>
-        <div class="flex flex-row justify-center gap-5 mt-5">
-            <div class="flex flex-row item-center">
+        <div class="flex md:flex-row flex-col justify-center gap-5 mt-5">
+            <div class="flex justify-center">
                 <span>Your ID: </span>
-                <span id="userId" class="ml-2 font-bold w-52 p-2 bg-gray-200 rounded-md" onclick="copyID()"></span>
+                <span id="userId" class="ml-2 font-bold w-52 p-2 bg-gray-200 rounded-md h-10" onclick="copyID()"></span>
             </div>
             <div class="flex justify-center">
                 <span>Other user ID: </span>
-                <input id="otherUserId" type="text" class="ml-2 w-52 p-2 bg-gray-200 rounded-md" placeholder="Enter the ID">
+                <input id="otherUserId" type="text" class="ml-2 w-52 p-2 bg-gray-200 rounded-md"
+                    placeholder="Enter the ID">
             </div>
             <div class="flex justify-center">
                 <button onclick="startCall()" class="p-2 bg-gray-600 text-white rounded-md">Start Call</button>
             </div>
         </div>
-        <div class="flex flex-row justify-center gap-10 mt-10">
-            <div class="flex flex-col gap-3">
+        <div class="flex md:flex-row flex-col justify-center gap-10 mt-10">
+            <div class="flex flex-col gap-3 justify-center">
                 <h2 class="text-xl font-bold text-center">Local Video</h2>
                 <video id="localVideo" autoplay playsinline class="w-96 h-72 bg-gray-200 rounded-md"></video>
             </div>
-            <div class="flex flex-col gap-3">
+            <div class="flex flex-col gap-3 justify-center">
                 <h2 class="text-xl font-bold text-center">Remote Video</h2>
                 <video id="remoteVideo" autoplay playsinline class="w-96 h-72 bg-gray-200 rounded-md"></video>
             </div>
+        </div>
+        <div class="flex justify-center mt-5 gap-10">
+            <button onclick="disconnectCall()" class="p-2 bg-red-600 text-white rounded-md">Disconnect Call</button>
+            <button onclick="toggleCamera()" class="p-2 bg-blue-600 text-white rounded-md">Toggle Camera</button>
+            <button onclick="toggleAudio()" class="p-2 bg-blue-600 text-white rounded-md">Toggle Audio</button>
         </div>
     </div>
     <script src="/socket.io/socket.io.js"></script>
@@ -71,7 +77,7 @@
 
             if (otherUserId) {
 
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 localVideo.srcObject = localStream;
 
                 const offerOptions = { offerToReceiveAudio: 1, offerToReceiveVideo: 1 };
@@ -127,6 +133,29 @@
             const text = document.getElementById('userId').textContent;
             navigator.clipboard.writeText(text);
             alert('ID copied to clipboard');
+        }
+
+        function disconnectCall() {
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+        }
+
+        function toggleCamera() {
+            if (localStream) {
+                localStream.getVideoTracks().forEach(track => {
+                    track.enabled = !track.enabled;
+                });
+            }
+        }
+
+        function toggleAudio() {
+            if (localStream) {
+                localStream.getAudioTracks().forEach(track => {
+                    track.enabled = !track.enabled;
+                });
+            }
         }
 
     </script>

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>WebRTC with Socket.io</title>
+</head>
+
+<body>
+    <div class="flex flex-col">
+        <div class="">
+            <h1 class="text-3xl font-bold text-center m-2">WebRTC with Socket.io</h1>
+        </div>
+        <div class="flex flex-row justify-center gap-5 mt-5">
+            <div class="flex flex-row item-center">
+                <span>Your ID: </span>
+                <span id="userId" class="ml-2 font-bold w-52 p-2 bg-gray-200 rounded-md" onclick="copyID()"></span>
+            </div>
+            <div class="flex justify-center">
+                <span>Other user ID: </span>
+                <input id="otherUserId" type="text" class="ml-2 w-52 p-2 bg-gray-200 rounded-md" placeholder="Enter the ID">
+            </div>
+            <div class="flex justify-center">
+                <button onclick="startCall()" class="p-2 bg-gray-600 text-white rounded-md">Start Call</button>
+            </div>
+        </div>
+        <div class="flex flex-row justify-center gap-10 mt-10">
+            <div class="flex flex-col gap-3">
+                <h2 class="text-xl font-bold text-center">Local Video</h2>
+                <video id="localVideo" autoplay playsinline class="w-96 h-72 bg-gray-200 rounded-md"></video>
+            </div>
+            <div class="flex flex-col gap-3">
+                <h2 class="text-xl font-bold text-center">Remote Video</h2>
+                <video id="remoteVideo" autoplay playsinline class="w-96 h-72 bg-gray-200 rounded-md"></video>
+            </div>
+        </div>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const userIdSpan = document.getElementById('userId');
+        const otherUserIdInput = document.getElementById('otherUserId');
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+        let localStream;
+        let peerConnection;
+        let otherUserId;
+
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+
+        socket.on('user-connected', (userId) => {
+            console.log('Received user-connected event with ID:', userId, typeof userId);
+            userIdSpan.textContent = String(userId);
+        });
+
+
+        socket.on('user-disconnected', (userId) => {
+            console.log('Received user-disconnected event with ID:', userId);
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+        });
+
+        async function startCall() {
+            otherUserId = otherUserIdInput.value;
+
+            if (otherUserId) {
+
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                localVideo.srcObject = localStream;
+
+                const offerOptions = { offerToReceiveAudio: 1, offerToReceiveVideo: 1 };
+
+                peerConnection = new RTCPeerConnection();
+                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+                peerConnection.ontrack = (event) => {
+                    remoteVideo.srcObject = event.streams[0];
+                };
+
+                peerConnection.onicecandidate = handleICECandidateEvent;
+
+                const offer = await peerConnection.createOffer(offerOptions);
+                await peerConnection.setLocalDescription(offer);
+
+                socket.emit('offer', offer, otherUserId);
+            } else {
+                console.error('Other user ID is required');
+            }
+        }
+
+        function handleICECandidateEvent(event) {
+            if (event.candidate) {
+                socket.emit('ice-candidate', event.candidate, otherUserId)
+            }
+        }
+
+        socket.on('offer', async (offer, fromUserId) => {
+            console.log('Received offer from:', fromUserId);
+
+            if (!peerConnection) {
+                await startCall();
+            }
+
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            socket.emit('answer', answer, fromUserId);
+        });
+
+        socket.on('answer', async (answer) => {
+            console.log('Received answer');
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        });
+
+        socket.on('ice-candidate', async (candidate) => {
+            console.log('Received ICE candidate');
+            await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        });
+
+        function copyID() {
+            const text = document.getElementById('userId').textContent;
+            navigator.clipboard.writeText(text);
+            alert('ID copied to clipboard');
+        }
+
+    </script>
+</body>
+
+</html>

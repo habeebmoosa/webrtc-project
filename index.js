@@ -25,11 +25,21 @@ io.on('connection', (socket) => {
     });
 
     socket.on('offer', (offer, toUserId) => {
-        connectedUsers[toUserId].emit('offer', offer, userId);
+        const destinationSocket = connectedUsers[toUserId];
+        if (destinationSocket) {
+            destinationSocket.emit('offer', offer, userId);
+        } else {
+            console.log(`User with ID ${toUserId} is not connected.`);
+        }
     });
 
     socket.on('answer', (answer, toUserId) => {
-        connectedUsers[toUserId].emit('answer', answer);
+        const destinationSocket = connectedUsers[toUserId];
+        if (destinationSocket) {
+            destinationSocket.emit('answer', answer);
+        } else {
+            console.log(`User with ID ${toUserId} is not connected.`);
+        }
     });
 
     socket.on('ice-candidate', (candidate, toUserId) => {
@@ -40,12 +50,12 @@ io.on('connection', (socket) => {
             console.log(`User with ID ${toUserId} is not connected.`);
         }
     });
-    
 });
 
 function generateUserId() {
     return Math.random().toString(36).substr(2, 9);
 }
+
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
